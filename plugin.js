@@ -1,19 +1,15 @@
 const PLUGIN_ID = "otakudesu-satrya";
 const BASE_URL = "https://otakudesu.blog";
 
-// 1. DAFTARIN CAPABILITIES UTAMA (BIAR GRAYJAY TAU CONFIG LU BISA MUTER VIDEO)
+// 1. FIX CAPABILITIES (Pake format class bawaan Grayjay)
 source.getCapabilities = function() {
-    return {
-        types: ["video"],
-        sorts: [],
-        filters: []
-    };
+    return new ResultCapabilities(["video"], [], []);
 };
 
 source.enable = function(conf) {};
 source.disable = function() {};
 
-// 2. BERANDA
+// 2. BERANDA (Ongoing)
 source.getHome = function() {
     const resp = http.GET(BASE_URL, {});
     const html = typeof resp === 'string' ? resp : resp.body;
@@ -86,9 +82,9 @@ source.search = function(query, type, order, filters) {
     return new VideoPager(results, false);
 };
 
-// 4. FIX PINTU MASUK URL (GANTI JADI isDetailsUrl SEUAI STANDAR BARU)
+// 4. FIX FLAG PINTU MASUK URL (Wajib return true/false murni)
 source.isDetailsUrl = function(url) {
-    return url.includes("otakudesu.blog");
+    return url.indexOf("otakudesu.blog") !== -1;
 };
 
 // 5. DETAIL PLAYER VIDEO
@@ -175,4 +171,3 @@ source.isChannelUrl = function(url) { return false; };
 source.getChannel = function(url) { throw new ScriptException("Not implemented"); };
 source.getChannelVideos = function(url, type, order, filters) { return new VideoPager([], false); };
 source.getChannelCapabilities = function() { return new ResultCapabilities([], [], []); };
-    
