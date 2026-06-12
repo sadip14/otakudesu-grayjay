@@ -1,7 +1,7 @@
 const PLUGIN_ID = "otakudesu-satrya";
 const BASE_URL = "https://otakudesu.blog";
 
-// 1. FIX CAPABILITIES (Pake format class bawaan Grayjay)
+// 1. CAPABILITIES
 source.getCapabilities = function() {
     return new ResultCapabilities(["video"], [], []);
 };
@@ -9,7 +9,7 @@ source.getCapabilities = function() {
 source.enable = function(conf) {};
 source.disable = function() {};
 
-// 2. BERANDA (Ongoing)
+// 2. BERANDA
 source.getHome = function() {
     const resp = http.GET(BASE_URL, {});
     const html = typeof resp === 'string' ? resp : resp.body;
@@ -29,6 +29,7 @@ source.getHome = function() {
             const gambar = elGambar.getAttribute("src"); 
             const linkNonton = elLink.getAttribute("href");
             
+            // FIX BUG #2 CLAUDE: Semua ID harus persis "otakudesu-satrya"
             results.push(new PlatformVideo({
                 id: new PlatformID(PLUGIN_ID, linkNonton, PLUGIN_ID),
                 name: judul,
@@ -82,12 +83,13 @@ source.search = function(query, type, order, filters) {
     return new VideoPager(results, false);
 };
 
-// 4. FIX FLAG PINTU MASUK URL (Wajib return true/false murni)
-source.isDetailsUrl = function(url) {
+// 4. FIX BUG #1 CLAUDE: GATEKEEPER ISVIDEODETAILSURL
+source.isVideoDetailsUrl = function(url) {
+    // Kalo URL-nya ngandung otakudesu.blog, berarti ini video kita!
     return url.indexOf("otakudesu.blog") !== -1;
 };
 
-// 5. DETAIL PLAYER VIDEO
+// 5. DETAIL PLAYER VIDEO (Udah disetujuin Claude konsepnya)
 source.getVideoDetails = function(url) {
     try {
         let targetUrl = url;
@@ -95,6 +97,7 @@ source.getVideoDetails = function(url) {
         let html = typeof resp === 'string' ? resp : resp.body;
         let doc = domParser.parseFromString(html);
 
+        // Kalo ini series URL, gali cari episode terbaru
         if (targetUrl.indexOf("/anime/") !== -1) {
             const epsLinks = doc.querySelectorAll(".episodelist ul li a");
             if (epsLinks && epsLinks.length > 0) {
@@ -148,7 +151,7 @@ source.getVideoDetails = function(url) {
     } catch (err) {
         return new PlatformVideoDetails({
             id: new PlatformID(PLUGIN_ID, url, PLUGIN_ID),
-            name: "ERROR: " + err.toString(),
+            name: "ERROR LOG: " + err.toString(),
             thumbnails: new Thumbnails([new Thumbnail("", 0)]),
             author: new PlatformAuthorLink(new PlatformID(PLUGIN_ID, "author", PLUGIN_ID), "Error Log", BASE_URL, "", 0),
             uploadDate: 0,
