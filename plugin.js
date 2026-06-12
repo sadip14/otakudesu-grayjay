@@ -1,50 +1,59 @@
-const BASE_URL = "https://otakudesu.blog";
+// nyiapin konfigurasi source utama grayjay
+const config = {
+    name: "Otakudesu Stream",
+    id: "otakudesu-satrya",
+    baseUrl: "https://otakudesu.blog"
+};
 
-// fungsi narik data feed halaman depan
+// ini fungsi wajib biar grayjay tau cara nampilin halaman utama
 function getHome() {
-    // nyuruh grayjay buka webnya
-    const response = http.GET(BASE_URL, {});
+    const response = http.GET(config.baseUrl, {});
     const doc = dom.parse(response);
     
-    const hasilAnime = [];
-    
-    // robot nyari semua kotak anime pake selector lu
+    // selector hasil buruan lu kemarin
     const kotakAnime = doc.select("div.detpost"); 
+    const results = [];
     
-    // robot ngebedah satu-satu isi kotaknya
-    for (let kotak of kotakAnime) {
-        let judul = kotak.select("h2.jdlflm").text();
-        let gambar = kotak.select("img").attr("src");
-        let linkEps = kotak.select("a").attr("href");
+    for (let i = 0; i < kotakAnime.length; i++) {
+        const kotak = kotakAnime[i];
+        const judul = kotak.select("h2.jdlflm").text();
+        const gambar = kotak.select("img").attr("src");
+        const linkNonton = kotak.select("a").attr("href");
         
-        // masukin ke daftar tontonan grayjay
-        hasilAnime.push({
-            title: judul,
-            thumbnail: gambar,
-            url: linkEps
-        });
+        // format wajib penulisan object video di grayjay
+        results.push(new PlatformVideo({
+            id: linkNonton,
+            name: judul,
+            thumbnails: [new Thumbnail(gambar)],
+            author: new PlatformAuthorLink(new PlatformID(config.id, "otakudesu", config.id), "Otakudesu", config.baseUrl)
+        }));
     }
     
-    return hasilAnime;
+    return new VideoPager(results, false);
 }
 
-// fungsi buat nyari anime (search)
+// ini fungsi wajib biar grayjay bisa pake kolom search
 function search(query) {
-    const searchUrl = BASE_URL + "/?s=" + encodeURIComponent(query) + "&submit=Search";
+    const searchUrl = `${config.baseUrl}/?s=${encodeURIComponent(query)}&submit=Search`;
     const response = http.GET(searchUrl, {});
     const doc = dom.parse(response);
     
-    const hasilSearch = [];
-    // selector buat hasil pencarian (biasanya pake .chivsrc li)
     const listSearch = doc.select(".chivsrc li");
+    const results = [];
     
-    for (let kotak of listSearch) {
-        hasilSearch.push({
-            title: kotak.select("h2").text(),
-            thumbnail: kotak.select("img").attr("src"),
-            url: kotak.select("a").attr("href")
-        });
+    for (let i = 0; i < listSearch.length; i++) {
+        const kotak = listSearch[i];
+        results.push(new PlatformVideo({
+            id: kotak.select("a").attr("href"),
+            name: kotak.select("h2").text(),
+            thumbnails: [new Thumbnail(kotak.select("img").attr("src"))],
+            author: new PlatformAuthorLink(new PlatformID(config.id, "otakudesu", config.id), "Otakudesu", config.baseUrl)
+        }));
     }
     
-    return hasilSearch;
+    return new VideoPager(results, false);
 }
+
+// ngedaftarin semua fungsi ke sistem grayjay
+source.getHome = getHome;
+source.search = search;
