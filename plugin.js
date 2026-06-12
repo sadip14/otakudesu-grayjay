@@ -1,9 +1,19 @@
 const PLUGIN_ID = "otakudesu-satrya";
 const BASE_URL = "https://otakudesu.blog";
 
+// 1. DAFTARIN CAPABILITIES UTAMA (BIAR GRAYJAY TAU CONFIG LU BISA MUTER VIDEO)
+source.getCapabilities = function() {
+    return {
+        types: ["video"],
+        sorts: [],
+        filters: []
+    };
+};
+
 source.enable = function(conf) {};
 source.disable = function() {};
 
+// 2. BERANDA
 source.getHome = function() {
     const resp = http.GET(BASE_URL, {});
     const html = typeof resp === 'string' ? resp : resp.body;
@@ -23,7 +33,6 @@ source.getHome = function() {
             const gambar = elGambar.getAttribute("src"); 
             const linkNonton = elLink.getAttribute("href");
             
-            // ID harus sama persis kayak di config.json
             results.push(new PlatformVideo({
                 id: new PlatformID(PLUGIN_ID, linkNonton, PLUGIN_ID),
                 name: judul,
@@ -40,6 +49,7 @@ source.getHome = function() {
     return new VideoPager(results, false);
 };
 
+// 3. PENCARIAN
 source.search = function(query, type, order, filters) {
     const searchUrl = BASE_URL + "/?s=" + encodeURIComponent(query) + "&submit=Search";
     const resp = http.GET(searchUrl, {});
@@ -76,11 +86,12 @@ source.search = function(query, type, order, filters) {
     return new VideoPager(results, false);
 };
 
-source.isVideoDetailsUrl = function(url) {
-    return url.indexOf("otakudesu") !== -1;
+// 4. FIX PINTU MASUK URL (GANTI JADI isDetailsUrl SEUAI STANDAR BARU)
+source.isDetailsUrl = function(url) {
+    return url.includes("otakudesu.blog");
 };
 
-// Bagian paling rawan error, dibungkus pake try-catch
+// 5. DETAIL PLAYER VIDEO
 source.getVideoDetails = function(url) {
     try {
         let targetUrl = url;
@@ -88,7 +99,6 @@ source.getVideoDetails = function(url) {
         let html = typeof resp === 'string' ? resp : resp.body;
         let doc = domParser.parseFromString(html);
 
-        // kalo kliknya dari halaman judul (bukan eps), cari list eps terbarunya
         if (targetUrl.indexOf("/anime/") !== -1) {
             const epsLinks = doc.querySelectorAll(".episodelist ul li a");
             if (epsLinks && epsLinks.length > 0) {
@@ -106,7 +116,6 @@ source.getVideoDetails = function(url) {
         const videoSources = [];
 
         if (elIframe) {
-            // handle error kalo atribut src-nya kosong
             let iframeLink = elIframe.getAttribute("src") || elIframe.getAttribute("data-src") || "";
             if (iframeLink.indexOf("//") === 0) {
                 iframeLink = "https:" + iframeLink;
@@ -119,11 +128,10 @@ source.getVideoDetails = function(url) {
             }
         }
 
-        // kalo beneran ga nemu video, kasih video dummy biar ga force close
         if (videoSources.length === 0) {
             videoSources.push(new VideoUrlSource({
                 width: 1280, height: 720, container: "mp4", codec: "avc1",
-                name: "Link Video Ga Nemu Bro", bitrate: 0, duration: 1440, url: targetUrl
+                name: "Link Video Dummy", bitrate: 0, duration: 1440, url: targetUrl
             }));
         }
 
@@ -138,12 +146,10 @@ source.getVideoDetails = function(url) {
             viewCount: 0,
             isLive: false,
             description: "Nonton via Grayjay Oprekan Bro Satrya 🗿",
-            // format paling aman di grayjay buat ngebungkus list video
             video: new UnMuxVideoSourceDescriptor(videoSources, []) 
         });
 
     } catch (err) {
-        // kalo tetep nabrak error, playernya bakal nampilin log errornya
         return new PlatformVideoDetails({
             id: new PlatformID(PLUGIN_ID, url, PLUGIN_ID),
             name: "ERROR: " + err.toString(),
@@ -154,7 +160,7 @@ source.getVideoDetails = function(url) {
             duration: 0,
             viewCount: 0,
             isLive: false,
-            description: "Error detail: " + (err.stack || err.toString()),
+            description: "Error detail: " + err.toString(),
             video: new UnMuxVideoSourceDescriptor([new VideoUrlSource({
                 width: 1280, height: 720, container: "mp4", codec: "avc1",
                 name: "Error", bitrate: 0, duration: 0, url: url
@@ -169,3 +175,4 @@ source.isChannelUrl = function(url) { return false; };
 source.getChannel = function(url) { throw new ScriptException("Not implemented"); };
 source.getChannelVideos = function(url, type, order, filters) { return new VideoPager([], false); };
 source.getChannelCapabilities = function() { return new ResultCapabilities([], [], []); };
+    
