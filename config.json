@@ -8,5 +8,9 @@
   "iconUrl": "https://otakudesu.blog/wp-content/uploads/2022/01/logo-1.png",
   "allowExecution": true,
   "allowNetwork": true,
-  "packages": ["Http", "DOMParser"]
+  "packages": ["Http", "DOMParser"],
+  "allowUrls": [
+    "https://otakudesu.blog",
+    "otakudesu.blog"
+  ]
 }
