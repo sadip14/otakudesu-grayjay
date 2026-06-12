@@ -89,5 +89,54 @@ source.isChannelUrl = function(url) { return false; };
 source.getChannel = function(url) { throw new ScriptException("Not implemented"); };
 source.getChannelVideos = function(url, type, order, filters) { return new VideoPager([], false); };
 source.getChannelCapabilities = function() { return new ResultCapabilities([], [], []); };
-source.isVideoDetailsUrl = function(url) { return url.includes("otakudesu.blog/anime/"); };
-source.getVideoDetails = function(url) { throw new ScriptException("Belum dibikin"); };
+source.isVideoDetailsUrl = function(url) {
+    // biar semua link dari otakudesu diterima masuk ke halaman player
+    return url.includes("otakudesu.blog");
+};
+
+source.getVideoDetails = function(url) {
+    const resp = http.GET(url, {});
+    const html = typeof resp === 'string' ? resp : resp.body;
+    const doc = domParser.parseFromString(html);
+
+    // nyari judul di halaman detail
+    const elJudul = doc.querySelector("h1");
+    const judul = elJudul ? elJudul.textContent : "Nonton Anime";
+
+    // nyari link iframe desustream yang lu dapet kemaren
+    const elIframe = doc.querySelector("iframe");
+    const videoSources = [];
+
+    if (elIframe) {
+        const iframeLink = elIframe.getAttribute("src");
+        // ngebungkus link iframe jadi format video grayjay
+        videoSources.push(new VideoUrlSource({
+            width: 1280,
+            height: 720,
+            container: "mp4",
+            codec: "avc1",
+            name: "Desustream (Web)",
+            bitrate: 0,
+            duration: 0,
+            url: iframeLink
+        }));
+    }
+
+    // ngebalikin data video ke grayjay biar ga error
+    return new PlatformVideoDetails({
+        id: new PlatformID("otakudesu", url, PLUGIN_ID),
+        name: judul,
+        thumbnails: new Thumbnails([new Thumbnail("", 0)]),
+        author: new PlatformAuthorLink(new PlatformID("otakudesu", "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
+        uploadDate: Math.floor(Date.now() / 1000),
+        url: url,
+        duration: 1440,
+        viewCount: 0,
+        isLive: false,
+        description: "Streaming dari Otakudesu by Satrya 🗿",
+        video: new MuxVideoSourceDescriptor({
+            isUnMuxed: false,
+            videoSources: videoSources
+        })
+    });
+};
