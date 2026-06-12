@@ -7,5 +7,6 @@
   "scriptUrl": "https://raw.githubusercontent.com/sadip14/otakudesu-grayjay/main/plugin.js",
   "iconUrl": "https://otakudesu.blog/wp-content/uploads/2022/01/logo-1.png",
   "allowExecution": true,
-  "allowNetwork": true
+  "allowNetwork": true,
+  "packages": ["Http", "DOMParser"]
 }
