@@ -1,0 +1,9 @@
+{
+  "id": "otakudesu-satrya",
+  "name": "Otakudesu Stream",
+  "version": "1.0",
+  "description": "Nonton anime sub indo dari Otakudesu",
+  "author": "Satrya",
+  "allowExecution": true,
+  "allowNetwork": true
+}
