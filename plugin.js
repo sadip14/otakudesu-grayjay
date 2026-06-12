@@ -23,12 +23,12 @@ source.getHome = function() {
             const gambar = elGambar.getAttribute("src"); 
             const linkNonton = elLink.getAttribute("href");
             
-            // platform name disamain ama nama config lu
+            // ID harus sama persis kayak di config.json
             results.push(new PlatformVideo({
-                id: new PlatformID("Otakudesu Stream", linkNonton, PLUGIN_ID),
+                id: new PlatformID(PLUGIN_ID, linkNonton, PLUGIN_ID),
                 name: judul,
                 thumbnails: new Thumbnails([new Thumbnail(gambar, 0)]),
-                author: new PlatformAuthorLink(new PlatformID("Otakudesu Stream", "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
+                author: new PlatformAuthorLink(new PlatformID(PLUGIN_ID, "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
                 uploadDate: Math.floor(Date.now() / 1000),
                 url: linkNonton,
                 duration: 1440,
@@ -61,10 +61,10 @@ source.search = function(query, type, order, filters) {
             const gambar = elGambar.getAttribute("src");
             
             results.push(new PlatformVideo({
-                id: new PlatformID("Otakudesu Stream", linkNonton, PLUGIN_ID),
+                id: new PlatformID(PLUGIN_ID, linkNonton, PLUGIN_ID),
                 name: judul,
                 thumbnails: new Thumbnails([new Thumbnail(gambar, 0)]),
-                author: new PlatformAuthorLink(new PlatformID("Otakudesu Stream", "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
+                author: new PlatformAuthorLink(new PlatformID(PLUGIN_ID, "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
                 uploadDate: Math.floor(Date.now() / 1000),
                 url: linkNonton,
                 duration: 1440,
@@ -80,73 +80,87 @@ source.isVideoDetailsUrl = function(url) {
     return url.indexOf("otakudesu") !== -1;
 };
 
+// Bagian paling rawan error, dibungkus pake try-catch
 source.getVideoDetails = function(url) {
-    let targetUrl = url;
-    let resp = http.GET(targetUrl, {});
-    let html = typeof resp === 'string' ? resp : resp.body;
-    let doc = domParser.parseFromString(html);
+    try {
+        let targetUrl = url;
+        let resp = http.GET(targetUrl, {});
+        let html = typeof resp === 'string' ? resp : resp.body;
+        let doc = domParser.parseFromString(html);
 
-    // script otomatis gali link episode kalo user ngeklik halaman anime
-    if (targetUrl.indexOf("/anime/") !== -1) {
-        const epsLinks = doc.querySelectorAll(".episodelist ul li a");
-        if (epsLinks.length > 0) {
-            // ambil episode terbaru
-            targetUrl = epsLinks[0].getAttribute("href");
-            resp = http.GET(targetUrl, {});
-            html = typeof resp === 'string' ? resp : resp.body;
-            doc = domParser.parseFromString(html);
-        }
-    }
-
-    const elJudul = doc.querySelector("h1");
-    const judul = elJudul ? elJudul.textContent : "Nonton Anime";
-
-    // nyari iframe video
-    const elIframe = doc.querySelector(".responsive-embed iframe") || doc.querySelector("iframe");
-    const videoSources = [];
-
-    if (elIframe) {
-        let iframeLink = elIframe.getAttribute("src");
-        
-        // fix link iframe kalo kepotong
-        if (iframeLink.startsWith("//")) {
-            iframeLink = "https:" + iframeLink;
+        // kalo kliknya dari halaman judul (bukan eps), cari list eps terbarunya
+        if (targetUrl.indexOf("/anime/") !== -1) {
+            const epsLinks = doc.querySelectorAll(".episodelist ul li a");
+            if (epsLinks && epsLinks.length > 0) {
+                targetUrl = epsLinks[0].getAttribute("href") || targetUrl;
+                resp = http.GET(targetUrl, {});
+                html = typeof resp === 'string' ? resp : resp.body;
+                doc = domParser.parseFromString(html);
+            }
         }
 
-        videoSources.push(new VideoUrlSource({
-            width: 1280,
-            height: 720,
-            container: "mp4",
-            codec: "avc1",
-            name: "Desustream Server",
-            bitrate: 0,
+        const elJudul = doc.querySelector("h1");
+        const judul = elJudul ? elJudul.textContent : "Nonton Anime";
+
+        const elIframe = doc.querySelector(".responsive-embed iframe") || doc.querySelector("iframe");
+        const videoSources = [];
+
+        if (elIframe) {
+            // handle error kalo atribut src-nya kosong
+            let iframeLink = elIframe.getAttribute("src") || elIframe.getAttribute("data-src") || "";
+            if (iframeLink.indexOf("//") === 0) {
+                iframeLink = "https:" + iframeLink;
+            }
+            if (iframeLink !== "") {
+                videoSources.push(new VideoUrlSource({
+                    width: 1280, height: 720, container: "mp4", codec: "avc1",
+                    name: "Desustream Server", bitrate: 0, duration: 1440, url: iframeLink
+                }));
+            }
+        }
+
+        // kalo beneran ga nemu video, kasih video dummy biar ga force close
+        if (videoSources.length === 0) {
+            videoSources.push(new VideoUrlSource({
+                width: 1280, height: 720, container: "mp4", codec: "avc1",
+                name: "Link Video Ga Nemu Bro", bitrate: 0, duration: 1440, url: targetUrl
+            }));
+        }
+
+        return new PlatformVideoDetails({
+            id: new PlatformID(PLUGIN_ID, url, PLUGIN_ID),
+            name: judul,
+            thumbnails: new Thumbnails([new Thumbnail("https://otakudesu.blog/wp-content/uploads/2022/01/logo-1.png", 0)]),
+            author: new PlatformAuthorLink(new PlatformID(PLUGIN_ID, "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
+            uploadDate: Math.floor(Date.now() / 1000),
+            url: url,
+            duration: 1440,
+            viewCount: 0,
+            isLive: false,
+            description: "Nonton via Grayjay Oprekan Bro Satrya 🗿",
+            // format paling aman di grayjay buat ngebungkus list video
+            video: new UnMuxVideoSourceDescriptor(videoSources, []) 
+        });
+
+    } catch (err) {
+        // kalo tetep nabrak error, playernya bakal nampilin log errornya
+        return new PlatformVideoDetails({
+            id: new PlatformID(PLUGIN_ID, url, PLUGIN_ID),
+            name: "ERROR: " + err.toString(),
+            thumbnails: new Thumbnails([new Thumbnail("", 0)]),
+            author: new PlatformAuthorLink(new PlatformID(PLUGIN_ID, "author", PLUGIN_ID), "Error Log", BASE_URL, "", 0),
+            uploadDate: 0,
+            url: url,
             duration: 0,
-            url: iframeLink
-        }));
-    } else {
-        // fallback dummy biar app ga mental dan ngeluarin popup error di depan
-        videoSources.push(new VideoUrlSource({
-            width: 1280, height: 720, container: "mp4", codec: "avc1",
-            name: "Iframe Ga Nemu Bro", bitrate: 0, duration: 0, url: targetUrl
-        }));
+            viewCount: 0,
+            isLive: false,
+            description: "Error detail: " + (err.stack || err.toString()),
+            video: new UnMuxVideoSourceDescriptor([new VideoUrlSource({
+                width: 1280, height: 720, container: "mp4", codec: "avc1",
+                name: "Error", bitrate: 0, duration: 0, url: url
+            })], [])
+        });
     }
-
-    return new PlatformVideoDetails({
-        id: new PlatformID("Otakudesu Stream", url, PLUGIN_ID),
-        name: judul,
-        thumbnails: new Thumbnails([new Thumbnail("", 0)]),
-        author: new PlatformAuthorLink(new PlatformID("Otakudesu Stream", "author", PLUGIN_ID), "Otakudesu", BASE_URL, "", 0),
-        uploadDate: Math.floor(Date.now() / 1000),
-        url: url,
-        duration: 1440,
-        viewCount: 0,
-        isLive: false,
-        description: "Nonton via Grayjay Oprekan Bro Satrya 🗿",
-        video: new MuxVideoSourceDescriptor({
-            isUnMuxed: false,
-            videoSources: videoSources
-        })
-    });
 };
 
 source.getSearchCapabilities = function() { return new ResultCapabilities([], [], []); };
